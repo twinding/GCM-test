@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">GCM-test</string>
+
+    <string name="mDisplay">mDisplay</string>
+    <string name="action_settings">Settings</string>
+    <string name="idButton">Print ID</string>
+    <string name="registerButton">Re-register</string>
+</resources>
