@@ -11,7 +11,6 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -62,36 +61,6 @@ public class MainActivity extends ActionBarActivity {
         } else {
             Log.i(GCM_TAG, "No Google Play Services found");
         }
-
-        Button b = (Button) findViewById(R.id.sendButton);
-        b.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                new AsyncTask<Void, Void, String>() {
-                    @Override
-                    protected String doInBackground(Void... params) {
-                        String msg = "";
-                        try {
-                            Bundle data = new Bundle();
-                            data.putString("my_message", "Hello World");
-                            data.putString("my_action",
-                                    "com.google.android.gcm.demo.app.ECHO_NOW");
-                            String id = Integer.toString(msgId.incrementAndGet());
-                            gcm.send(SENDER_ID + "@gcm.googleapis.com", id, data);
-                            msg = "Sent message";
-                        } catch (IOException ex) {
-                            msg = "Error :" + ex.getMessage();
-                        }
-                        return msg;
-                    }
-
-                    @Override
-                    protected void onPostExecute(String msg) {
-                        mDisplay.append(msg + "\n");
-                    }
-                }.execute(null, null, null);
-            }
-        });
     }
 
     @Override
@@ -242,6 +211,7 @@ public class MainActivity extends ActionBarActivity {
      */
     private void sendRegistrationIdToBackend() {
         // Your implementation here.
+        //TODO Send our registration ID to the third party server
     }
 
     private void storeRegistrationId(Context context, String regId) {
@@ -254,52 +224,22 @@ public class MainActivity extends ActionBarActivity {
         editor.commit();
     }
 
-
-
-
-    /*public void onClick(final View view) {
-        if (view == findViewById(R.id.sendButton)) {
-            new AsyncTask<Void, Void, String>() {
-                @Override
-                protected String doInBackground(Void... params) {
-                    String msg = "";
-                    try {
-                        Bundle data = new Bundle();
-                        data.putString("my_message", "Hello World");
-                        data.putString("my_action",
-                                "com.google.android.gcm.demo.app.ECHO_NOW");
-                        String id = Integer.toString(msgId.incrementAndGet());
-                        gcm.send(ID + "@gcm.googleapis.com", id, data);
-                        msg = "Sent message";
-                    } catch (IOException ex) {
-                        msg = "Error :" + ex.getMessage();
-                    }
-                    return msg;
-                }
-
-                @Override
-                protected void onPostExecute(String msg) {
-                    mDisplay.append(msg + "\n");
-                }
-            }.execute(null, null, null);
-        }
-    }*/
-
-   /* public void sendData(View view) {
+    public void sendData(View view) {
         new AsyncTask<Void, Void, String>() {
             @Override
             protected String doInBackground(Void... params) {
                 String msg = "";
-                Bundle data = new Bundle();
-                data.putString("my_message", "Hello World");
-                data.putString("my_action","dk.teamawesome.gcm_test.app.ECHO_NOW");
-                String id = Integer.toString(msgId.incrementAndGet());
                 try {
-                    gcm.send(ID + "@gcm.googleapis.com", id, data);
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    Bundle data = new Bundle();
+                    data.putString("my_message", "Hello World");
+                    data.putString("my_action", "com.google.android.gcm.demo.app.ECHO_NOW");
+                    String id = Integer.toString(msgId.incrementAndGet());
+                    gcm.send(SENDER_ID + "@gcm.googleapis.com", id, data);
+                    msg = "Sent message";
+                } catch (IOException ex) {
+                    msg = "Error :" + ex.getMessage();
                 }
-                msg = "Sent message";
+                Log.i(GCM_TAG, "Message sent");
                 return msg;
             }
 
@@ -308,7 +248,7 @@ public class MainActivity extends ActionBarActivity {
                 mDisplay.append(msg + "\n");
             }
         }.execute(null, null, null);
-    }*/
+    }
 
     public void printID(View view) {
         TextView textView = (TextView) findViewById(R.id.mDisplay);
