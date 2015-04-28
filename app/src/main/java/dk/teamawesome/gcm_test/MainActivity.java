@@ -1,10 +1,15 @@
 package dk.teamawesome.gcm_test;
 
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.os.AsyncTask;
+import android.os.IBinder;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -12,8 +17,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 
@@ -41,6 +46,10 @@ public class MainActivity extends ActionBarActivity {
 
     private String regId;
 
+    private GCMService gcmService;
+    private boolean gcmBound = false;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,25 +57,62 @@ public class MainActivity extends ActionBarActivity {
 
         Log.i(GCM_TAG, "OnCreate");
 
+        IntentFilter userRecoverableError = new IntentFilter(GCMService.USER_RECOVERABLE_ERROR);
+        IntentFilter deviceNotSupported = new IntentFilter(GCMService.DEVICE_NOT_SUPPORTED);
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                GooglePlayServicesUtil.getErrorDialog(intent.getExtras().getInt("resultCode"), MainActivity.this, PLAY_SERVICES_RESOLUTION_REQUEST).show();
+            }
+        },userRecoverableError);
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Toast.makeText(MainActivity.this, "Device not supported", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        },deviceNotSupported);
+
+        Intent intent = new Intent(this, GCMService.class);
+        bindService(intent, gcmConnection, Context.BIND_AUTO_CREATE);
+
         mDisplay = (TextView) findViewById(R.id.mDisplay);
         context = getApplicationContext();
+    }
 
-        if (checkPlayServices()) {
-            gcm = GoogleCloudMessaging.getInstance(this);
-            regId = getRegistrationId(context);
-
-            if (regId.isEmpty()) {
-                registerInBackground();
-            }
-        } else {
-            Log.i(GCM_TAG, "No Google Play Services found");
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (gcmBound) {
+            unbindService(gcmConnection);
+            gcmBound = false;
         }
     }
+
+    /** Defines callbacks for service binding, passed to bindService() */
+    private ServiceConnection gcmConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            // We've bound to LocalService, cast the IBinder and get LocalService instance
+            GCMService.LocalBinder binder = (GCMService.LocalBinder) service;
+            gcmService = binder.getService();
+            gcmBound = true;
+            gcmService.init();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            gcmBound = false;
+        }
+    };
 
     @Override
     protected void onResume() {
         super.onResume();
-        checkPlayServices();
+        if (gcmBound) gcmService.checkPlayServices();
     }
 
     @Override
@@ -89,139 +135,6 @@ public class MainActivity extends ActionBarActivity {
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    /**
-     * Check if Play Services is available. If it is not, a dialog will be displayed prompting the user
-     * to download Play Services, or enable it in settings.
-     */
-    private boolean checkPlayServices() {
-        int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
-        if (resultCode != ConnectionResult.SUCCESS) {
-            if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
-                GooglePlayServicesUtil.getErrorDialog(resultCode, this, PLAY_SERVICES_RESOLUTION_REQUEST).show();
-            } else {
-                Log.i(GCM_TAG, "This device is not supported");
-                finish();
-            }
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * Gets the current registration ID for application on GCM service.
-     * If the result is empty, the app needs to register.
-     *
-     * Returns registration ID or empty string if no existing registration ID
-     */
-    private String getRegistrationId(Context context) {
-        final SharedPreferences prefs = getGCMPreferences(context);
-        String registrationId = prefs.getString(PROPERTY_REG_ID, "");
-        if (DEBUG) Log.i(GCM_TAG, "getRegistrationId");
-        if (registrationId.isEmpty()) {
-            Log.i(GCM_TAG, "Registration not found.");
-            return "";
-        }
-
-        int registeredVersion = prefs.getInt(PROPERTY_APP_VERSION, Integer.MIN_VALUE);
-        int currentVersion = getAppVersion(context);
-
-        /**
-         * Check if app was updated. If so, it must clear the registration ID
-         * since the existing registration ID is not guaranteed to work with
-         * the new app version.
-         */
-        if (currentVersion != registeredVersion) {
-            Log.i(GCM_TAG, "App version changed");
-            return "";
-        }
-        if (DEBUG) Log.i(GCM_TAG, "Had registration ID " + registrationId);
-        return registrationId;
-    }
-
-    private SharedPreferences getGCMPreferences(Context context) {
-        // This sample app persists the registration ID in shared preferences, but
-        // how you store the registration ID in your app is up to you.
-        return getSharedPreferences(MainActivity.class.getSimpleName(), Context.MODE_PRIVATE);
-    }
-
-    /**
-     * Return applications' version number
-     */
-    private static int getAppVersion(Context context) {
-        try {
-            PackageInfo packageInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
-            return packageInfo.versionCode;
-        } catch (PackageManager.NameNotFoundException e) {
-            throw new RuntimeException("Could net get package name.");
-        }
-    }
-
-    /**
-     * Registers the application with GCM servers asynchronously.
-     * Stores the registration ID and app versionCode in the application's
-     * shared preferences.
-     */
-    private void registerInBackground() {
-        if (DEBUG) Log.i(GCM_TAG, "registerInBackground");
-        new AsyncTask<Void, Void, String>() {
-            @Override
-            protected String doInBackground(Void... params) {
-                String msg = "";
-                try {
-                    Log.i(GCM_TAG, "Registering");
-                    if (gcm == null) {
-                        gcm = GoogleCloudMessaging.getInstance(context);
-                    }
-                    regId = gcm.register(SENDER_ID);
-                    msg = "Device registered on ID = " + regId;
-
-                    // You should send the registration ID to your server over HTTP,
-                    // so it can use GCM/HTTP or CCS to send messages to your app.
-                    // The request to your server should be authenticated if your app
-                    // is using accounts.
-                    sendRegistrationIdToBackend();
-
-                    // For this demo: we don't need to send it because the device
-                    // will send upstream messages to a server that echo back the
-                    // message using the 'from' address in the message.
-
-                    // Persist the registration ID - no need to register again.
-                    storeRegistrationId(context, regId);
-                } catch (IOException e) {
-                    msg = "Error: " + e.getMessage();
-                }
-                return msg;
-            }
-
-            @Override
-            protected void onPostExecute(String msg) {
-                mDisplay.setText(msg + "\n");
-            }
-
-        }.execute(null,null,null);
-    }
-
-    /**
-     * Sends the registration ID to your server over HTTP, so it can use GCM/HTTP
-     * or CCS to send messages to your app. Not needed for this demo since the
-     * device sends upstream messages to a server that echoes back the message
-     * using the 'from' address in the message.
-     */
-    private void sendRegistrationIdToBackend() {
-        // Your implementation here.
-        //TODO Send our registration ID to the third party server
-    }
-
-    private void storeRegistrationId(Context context, String regId) {
-        final SharedPreferences prefs = getGCMPreferences(context);
-        int appVersion = getAppVersion(context);
-        Log.i(GCM_TAG, "Storing regId on app version " + appVersion);
-        SharedPreferences.Editor editor = prefs.edit();
-        editor.putString(PROPERTY_REG_ID, regId);
-        editor.putInt(PROPERTY_APP_VERSION, appVersion);
-        editor.commit();
     }
 
     public void sendData(View view) {
@@ -251,12 +164,13 @@ public class MainActivity extends ActionBarActivity {
     }
 
     public void printID(View view) {
+        String result = gcmService.getId();
         TextView textView = (TextView) findViewById(R.id.mDisplay);
-        textView.setText("ID is: " + regId + "\n");
-        Log.i(GCM_TAG, "regId: " + regId);
+        textView.setText("ID is: " + result + "\n");
+        Log.i(GCM_TAG, "regId: " + result);
     }
 
     public void reRegister(View view) {
-        registerInBackground();
+        gcmService.registerInBackground();
     }
 }
