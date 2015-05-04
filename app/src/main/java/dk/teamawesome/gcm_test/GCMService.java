@@ -11,15 +11,12 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
-import android.view.View;
-import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class GCMService extends IntentService {
     private static final boolean DEBUG = true;
@@ -31,14 +28,10 @@ public class GCMService extends IntentService {
     private static final String SENDER_ID = "566429425839";
     //Tag for log
     private static final String GCM_TAG = "GCM-Test";
-    private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
-    public static final String EXTRA_MESSAGE = "message";
     public static final String PROPERTY_REG_ID = "registration_id";
     private static final String PROPERTY_APP_VERSION = "appVersion";
 
     private GoogleCloudMessaging gcm;
-    private AtomicInteger msgId = new AtomicInteger();
-    private SharedPreferences prefs;
     private Context context;
 
     private String regId;
@@ -87,14 +80,12 @@ public class GCMService extends IntentService {
         int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
         if (resultCode != ConnectionResult.SUCCESS) {
             if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
-//                GooglePlayServicesUtil.getErrorDialog(resultCode, this, PLAY_SERVICES_RESOLUTION_REQUEST).show();
                 Intent intent = new Intent(USER_RECOVERABLE_ERROR);
                 intent.putExtra("resultCode", resultCode);
                 LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
             } else {
                 Log.i(GCM_TAG, "This device is not supported");
                 LocalBroadcastManager.getInstance(this).sendBroadcast(new Intent(DEVICE_NOT_SUPPORTED));
-//                finish();
             }
             return false;
         }
@@ -163,15 +154,8 @@ public class GCMService extends IntentService {
                     regId = gcm.register(SENDER_ID);
                     msg = "Device registered on ID = " + regId;
 
-                    // You should send the registration ID to your server over HTTP,
-                    // so it can use GCM/HTTP or CCS to send messages to your app.
-                    // The request to your server should be authenticated if your app
-                    // is using accounts.
+                    //Send a message to third-party server with our registered ID.
                     sendRegistrationIdToBackend();
-
-                    // For this demo: we don't need to send it because the device
-                    // will send upstream messages to a server that echo back the
-                    // message using the 'from' address in the message.
 
                     // Persist the registration ID - no need to register again.
                     storeRegistrationId(context, regId);
@@ -183,7 +167,6 @@ public class GCMService extends IntentService {
 
             @Override
             protected void onPostExecute(String msg) {
-//                mDisplay.setText(msg + "\n");
             }
 
         }.execute(null,null,null);

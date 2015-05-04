@@ -16,8 +16,6 @@ public class GcmIntentService extends IntentService {
 
     public static final int NOTIFICATION_ID = 1;
     private static final String TAG = "GCM Intent Service";
-    private NotificationManager mNotificationManager;
-    private NotificationCompat.Builder builder;
 
     public GcmIntentService() {
         super("GcmIntentService");
@@ -64,7 +62,7 @@ public class GcmIntentService extends IntentService {
     // This is just one simple example of what you might choose to do with
     // a GCM message.
     private void sendNotification(String msg) {
-        mNotificationManager = (NotificationManager)this.getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationManager mNotificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
 
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0,new Intent(this, MainActivity.class), 0);
 

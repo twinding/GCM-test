@@ -10,7 +10,7 @@ import android.util.Log;
 public class GcmBroadcastReceiver extends WakefulBroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.i("GCM-Test", "onReceive");
+        if (MainActivity.DEBUG) Log.i("GCM-Test", "onReceive");
 
         ComponentName comp = new ComponentName(context.getPackageName(), GcmIntentService.class.getName());
 

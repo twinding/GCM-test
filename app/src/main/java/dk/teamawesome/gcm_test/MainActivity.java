@@ -6,8 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
-import android.os.AsyncTask;
 import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.ActionBarActivity;
@@ -20,31 +18,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.GooglePlayServicesUtil;
-import com.google.android.gms.gcm.GoogleCloudMessaging;
-
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class MainActivity extends ActionBarActivity {
-    private static final boolean DEBUG = true;
+    public static final boolean DEBUG = true;
 
-    // Our project ID from Google Development Console
-    private static final String SENDER_ID = "566429425839";
     //Tag for log
     private static final String GCM_TAG = "GCM-Test";
     private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
-    public static final String EXTRA_MESSAGE = "message";
-    public static final String PROPERTY_REG_ID = "registration_id";
-    private static final String PROPERTY_APP_VERSION = "appVersion";
-
-    private TextView mDisplay;
-    private GoogleCloudMessaging gcm;
-    private AtomicInteger msgId = new AtomicInteger();
-    private SharedPreferences prefs;
-    private Context context;
-
-    private String regId;
 
     private GCMService gcmService;
     private boolean gcmBound = false;
@@ -55,11 +36,21 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Log.i(GCM_TAG, "OnCreate");
+        if (DEBUG) Log.i(GCM_TAG, "OnCreate");
 
+        /**
+         * Register intent filters for the checks for Google Play Services that are performed in
+         * the GCMService.checkPlayServices() method.
+         */
         IntentFilter userRecoverableError = new IntentFilter(GCMService.USER_RECOVERABLE_ERROR);
         IntentFilter deviceNotSupported = new IntentFilter(GCMService.DEVICE_NOT_SUPPORTED);
 
+        /**
+         * Broadcast receivers for the intents registered above. The first receiver displays a
+         * prompt to download Play Services, or enable in the settings. The second receiver is for
+         * the event that it is not possible to get Play Services running; thus the app will not be
+         * usable on the device as it relies on Play Services for GCM.
+         */
         LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -77,9 +68,6 @@ public class MainActivity extends ActionBarActivity {
 
         Intent intent = new Intent(this, GCMService.class);
         bindService(intent, gcmConnection, Context.BIND_AUTO_CREATE);
-
-        mDisplay = (TextView) findViewById(R.id.mDisplay);
-        context = getApplicationContext();
     }
 
     @Override
@@ -137,32 +125,9 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void sendData(View view) {
-        new AsyncTask<Void, Void, String>() {
-            @Override
-            protected String doInBackground(Void... params) {
-                String msg = "";
-                try {
-                    Bundle data = new Bundle();
-                    data.putString("my_message", "Hello World");
-                    data.putString("my_action", "com.google.android.gcm.demo.app.ECHO_NOW");
-                    String id = Integer.toString(msgId.incrementAndGet());
-                    gcm.send(SENDER_ID + "@gcm.googleapis.com", id, data);
-                    msg = "Sent message";
-                } catch (IOException ex) {
-                    msg = "Error :" + ex.getMessage();
-                }
-                Log.i(GCM_TAG, "Message sent");
-                return msg;
-            }
-
-            @Override
-            protected void onPostExecute(String msg) {
-                mDisplay.append(msg + "\n");
-            }
-        }.execute(null, null, null);
-    }
-
+    /**
+     * Debugging method for printing the ID that the device gets when registering on GCM.
+     */
     public void printID(View view) {
         String result = gcmService.getId();
         TextView textView = (TextView) findViewById(R.id.mDisplay);
@@ -170,6 +135,11 @@ public class MainActivity extends ActionBarActivity {
         Log.i(GCM_TAG, "regId: " + result);
     }
 
+    /**
+     * Debugging method for re-registering the device on GCM. Should hopefully not be necessary
+     * when the app is finalized and does not change. Probably related to the fact that Google
+     * requires re-registering all devices whenever a new version of the app is released.
+     */
     public void reRegister(View view) {
         gcmService.registerInBackground();
     }
