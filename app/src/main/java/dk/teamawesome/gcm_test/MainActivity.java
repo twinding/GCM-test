@@ -90,13 +90,9 @@ public class MainActivity extends ActionBarActivity {
     };
 
     @Override
-    protected void onStop() {
-        super.onStop();
-    }
-
-    @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (DEBUG) Log.i(GCM_TAG, "onDestroy");
         //Only unbind on destroy as we want the service running the whole time the app is running
         if (gcmBound) {
             unbindService(gcmConnection);
@@ -107,6 +103,7 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (DEBUG) Log.i(GCM_TAG, "onResume");
         if (gcmBound) gcmService.checkPlayServices();
     }
 
