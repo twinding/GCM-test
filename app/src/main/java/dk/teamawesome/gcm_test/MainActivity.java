@@ -42,41 +42,33 @@ public class MainActivity extends ActionBarActivity {
          * Register intent filters for the checks for Google Play Services that are performed in
          * the GCMService.checkPlayServices() method.
          */
-        IntentFilter userRecoverableError = new IntentFilter(GCMService.USER_RECOVERABLE_ERROR);
-        IntentFilter deviceNotSupported = new IntentFilter(GCMService.DEVICE_NOT_SUPPORTED);
+        IntentFilter filter = new IntentFilter(GCMService.USER_RECOVERABLE_ERROR);
+        filter.addAction(GCMService.DEVICE_NOT_SUPPORTED);
 
         /**
-         * Broadcast receivers for the intents registered above. The first receiver displays a
-         * prompt to download Play Services, or enable in the settings. The second receiver is for
+         * Broadcast receiver for the intents registered above. The first case displays a
+         * prompt to download Play Services, or enable in the settings. The second case is for
          * the event that it is not possible to get Play Services running; thus the app will not be
          * usable on the device as it relies on Play Services for GCM.
          */
         LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                GooglePlayServicesUtil.getErrorDialog(intent.getExtras().getInt("resultCode"), MainActivity.this, PLAY_SERVICES_RESOLUTION_REQUEST).show();
+                switch (intent.getAction()) {
+                    case GCMService.USER_RECOVERABLE_ERROR:
+                        GooglePlayServicesUtil.getErrorDialog(intent.getExtras().getInt("resultCode"), MainActivity.this, PLAY_SERVICES_RESOLUTION_REQUEST).show();
+                        break;
+                    case GCMService.DEVICE_NOT_SUPPORTED:
+                        Toast.makeText(MainActivity.this, "Device not supported", Toast.LENGTH_SHORT).show();
+                        finish();
+                        break;
+                }
             }
-        },userRecoverableError);
+        }, filter);
 
-        LocalBroadcastManager.getInstance(this).registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                Toast.makeText(MainActivity.this, "Device not supported", Toast.LENGTH_SHORT).show();
-                finish();
-            }
-        },deviceNotSupported);
-
+        //Bind the GCMService service
         Intent intent = new Intent(this, GCMService.class);
         bindService(intent, gcmConnection, Context.BIND_AUTO_CREATE);
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (gcmBound) {
-            unbindService(gcmConnection);
-            gcmBound = false;
-        }
     }
 
     /** Defines callbacks for service binding, passed to bindService() */
@@ -96,6 +88,21 @@ public class MainActivity extends ActionBarActivity {
             gcmBound = false;
         }
     };
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        //Only unbind on destroy as we want the service running the whole time the app is running
+        if (gcmBound) {
+            unbindService(gcmConnection);
+            gcmBound = false;
+        }
+    }
 
     @Override
     protected void onResume() {

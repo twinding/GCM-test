@@ -41,6 +41,7 @@ public class GcmIntentService extends IntentService {
                     sendNotification("Deleted messages on server: " + extras.toString());
                     break;
                 case GoogleCloudMessaging.MESSAGE_TYPE_MESSAGE:
+                    //TODO Actual implementation of work
                     for (int i = 0; i < 5; i++) {
                         Log.i(TAG, "Dummy work..." + i + "/5");
                         try {
