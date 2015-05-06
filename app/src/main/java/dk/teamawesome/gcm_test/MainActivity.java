@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.ActionBarActivity;
@@ -26,10 +27,6 @@ public class MainActivity extends ActionBarActivity {
     //Tag for log
     private static final String GCM_TAG = "GCM-Test";
     private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
-
-    private GCMService gcmService;
-    private boolean gcmBound = false;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,45 +63,20 @@ public class MainActivity extends ActionBarActivity {
             }
         }, filter);
 
-        //Bind the GCMService service
-        Intent intent = new Intent(this, GCMService.class);
-        bindService(intent, gcmConnection, Context.BIND_AUTO_CREATE);
+        startGCMService(GCMService.INIT);
     }
-
-    /** Defines callbacks for service binding, passed to bindService() */
-    private ServiceConnection gcmConnection = new ServiceConnection() {
-
-        @Override
-        public void onServiceConnected(ComponentName className, IBinder service) {
-            // We've bound to LocalService, cast the IBinder and get LocalService instance
-            GCMService.LocalBinder binder = (GCMService.LocalBinder) service;
-            gcmService = binder.getService();
-            gcmBound = true;
-            gcmService.init();
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName arg0) {
-            gcmBound = false;
-        }
-    };
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         if (DEBUG) Log.i(GCM_TAG, "onDestroy");
-        //Only unbind on destroy as we want the service running the whole time the app is running
-        if (gcmBound) {
-            unbindService(gcmConnection);
-            gcmBound = false;
-        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (DEBUG) Log.i(GCM_TAG, "onResume");
-        if (gcmBound) gcmService.checkPlayServices();
+        startGCMService(GCMService.CHECK_PLAY_SERVICES);
     }
 
     @Override
@@ -130,13 +102,24 @@ public class MainActivity extends ActionBarActivity {
     }
 
     /**
+     * Helper method for starting the GCMService
+     * @param action What action should be performed by the service
+     */
+    private void startGCMService(String action) {
+        Intent intent = new Intent(this, GCMService.class);
+        intent.setAction(action);
+        startService(intent);
+    }
+
+    /**
      * Debugging method for printing the ID that the device gets when registering on GCM.
      */
     public void printID(View view) {
-        String result = gcmService.getId();
+        SharedPreferences prefs = getSharedPreferences(MainActivity.class.getSimpleName(), Context.MODE_PRIVATE);
+        String id = prefs.getString(GCMService.PROPERTY_REG_ID, "DefValue");
         TextView textView = (TextView) findViewById(R.id.mDisplay);
-        textView.setText("ID is: " + result + "\n");
-        Log.i(GCM_TAG, "regId: " + result);
+        textView.setText("ID is: " + id + "\n");
+        Log.i(GCM_TAG, "regId: " + id);
     }
 
     /**
@@ -145,6 +128,6 @@ public class MainActivity extends ActionBarActivity {
      * requires re-registering all devices whenever a new version of the app is released.
      */
     public void reRegister(View view) {
-        gcmService.registerInBackground();
+        startGCMService(GCMService.REREGISTER);
     }
 }

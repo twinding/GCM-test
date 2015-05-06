@@ -7,8 +7,6 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
-import android.os.Binder;
-import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
@@ -24,6 +22,11 @@ public class GCMService extends IntentService {
     public static final String USER_RECOVERABLE_ERROR = "dk.teamawesome.gcm_test.USER_RECOVERABLE_ERROR";
     public static final String DEVICE_NOT_SUPPORTED = "dk.teamawesome.gcm_test.DEVICE_NOT_SUPPORTED";
 
+    //Actions
+    public static final String INIT = "dk.teamawesome.gcm_test.INIT";
+    public static final String REREGISTER = "dk.teamawesome.gcm_test.REREGISTER";
+    public static final String CHECK_PLAY_SERVICES = "dk.teamawesome.gcm_test.CHECK_PLAY_SERVICES";
+
     // Our project ID from Google Development Console
     private static final String SENDER_ID = "566429425839";
     //Tag for log
@@ -36,26 +39,23 @@ public class GCMService extends IntentService {
 
     private String regId;
 
-    private final IBinder mBinder = new LocalBinder();
-
     public GCMService() {
         super("GCMService");
     }
 
-    public class LocalBinder extends Binder {
-        GCMService getService() {
-            return GCMService.this;
-        }
-    }
-
     @Override
     protected void onHandleIntent(Intent intent) {
-
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mBinder;
+        switch (intent.getAction()) {
+            case INIT:
+                init();
+                break;
+            case REREGISTER:
+                registerInBackground();
+                break;
+            case CHECK_PLAY_SERVICES:
+                checkPlayServices();
+                break;
+        }
     }
 
     public void init() {
@@ -191,9 +191,5 @@ public class GCMService extends IntentService {
         editor.putString(PROPERTY_REG_ID, regId);
         editor.putInt(PROPERTY_APP_VERSION, appVersion);
         editor.apply();
-    }
-
-    public String getId() {
-        return regId;
     }
 }
